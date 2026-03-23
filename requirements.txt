@@ -1,6 +1,5 @@
 chainlit==1.0.0
 pydantic==1.10.13
-fastapi==0.95.2
 langchain==0.0.350
 chromadb==0.4.22
 openai==0.28.1
