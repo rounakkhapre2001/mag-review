@@ -17,11 +17,11 @@ load_dotenv()
 kernel = Kernel()
 
 azure_chat_completion = AzureChatCompletion(
-    deployment_name="gpt-4.1",
-    endpoint="https://qiuyu-m9lw5wkq-eastus2.cognitiveservices.azure.com/",
-    api_key=os.getenv("AZURE_OPENAI_KEY"),
-    service_id="azure_openai"
+    deployment_name="gpt-4o",
+    endpoint=os.getenv("AZURE_INFERENCE_ENDPOINT"),
+    api_key=os.getenv("GITHUB_TOKEN"),
 )
+
 kernel.add_service(azure_chat_completion)
 
 system_prompt = """
