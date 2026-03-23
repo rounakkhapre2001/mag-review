@@ -15,4 +15,3 @@ numpy
 tiktoken
 httpx==0.24.1
 packaging==23.2
-langchain-huggingface
