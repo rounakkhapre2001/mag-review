@@ -3,12 +3,11 @@
 chainlit==1.0.0
 pydantic==1.10.13
 langchain==0.0.350
-langchain-community==0.0.20
 chromadb==0.4.22
 openai==0.28.1
 python-dotenv
 sentence-transformers==2.2.2
-torch==2.0.1+cpu
+torch==2.0.1+cpux
 keybert
 pybars3
 aiohttp

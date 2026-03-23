@@ -2,7 +2,7 @@ import os
 from typing import List, Dict, Any, AsyncGenerator
 import chromadb
 from langchain_community.vectorstores import Chroma
-from langchain.embeddings import HuggingFaceEmbeddings
+from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import CSVLoader, TextLoader, PyMuPDFLoader, Docx2txtLoader
 from autogen import AssistantAgent, UserProxyAgent, config_list_from_json
@@ -18,22 +18,23 @@ load_dotenv()
 cache_dir = os.path.join(os.getcwd(), "model_cache")
 os.makedirs(cache_dir, exist_ok=True)
 
+class CustomEmbedding:
+    def __init__(self):
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    def embed_documents(self, texts):
+        return self.model.encode(texts).tolist()
+
+    def embed_query(self, text):
+        return self.model.encode([text])[0].tolist()
 # Singleton Embeddings Manager to load embedding model only once
 class EmbeddingsManager:
-    _instance = None  
     _embeddings = None  
-    
+
     @classmethod
     def get_embeddings(cls):
-        """Return the existing embeddings instance or create a new one if none exists"""
         if cls._embeddings is None:
-            os.environ["SENTENCE_TRANSFORMERS_HOME"] = cache_dir
-            cls._embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={
-                  'device': 'cpu', # 'cuda' if GPU
-                }  
-            )
+            cls._embeddings = CustomEmbedding()
         return cls._embeddings
 
 class DocumentQAAgent:
