@@ -7,7 +7,7 @@ chromadb==0.4.22
 openai==0.28.1
 python-dotenv
 sentence-transformers==2.2.2
-torch==2.0.1+cpux
+torch==2.0.1
 keybert
 pybars3
 aiohttp
