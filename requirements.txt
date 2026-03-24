@@ -6,8 +6,11 @@ langchain==0.0.350
 chromadb==0.4.22
 openai==0.28.1
 python-dotenv
-sentence-transformers==2.2.2
-torch==2.0.1
+
+sentence-transformers==2.6.1
+torch==2.1.2+cpu
+huggingface_hub==0.20.3
+
 keybert
 pybars3
 aiohttp
