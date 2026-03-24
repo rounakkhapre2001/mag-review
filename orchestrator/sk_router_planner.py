@@ -10,7 +10,6 @@ from semantic_kernel.functions.kernel_arguments import KernelArguments
 
 from agents.multi_judge_agent import run_multi_judge_agents
 from agents.literature_agent import run_literature_agent_stream
-from agents.document_agent import DocumentQAAgent
 
 load_dotenv()
 
@@ -32,8 +31,9 @@ Select ONLY the most relevant skill for the user's query:
 - 'qa_plugin': Handle file uploads, document analysis, and retrieval-augmented generation (RAG) discussions based on user-uploaded documents. Use for answering questions about user files or for RAG-based academic discussions.
 """
 
-async def multi_agent_dispatch_stream(user_input: str) -> str:
+async def multi_agent_dispatch_stream(user_input: str):
     print(f"\n---\nUser input: {user_input}\n---")
+    
     result = await kernel.invoke_prompt(
         prompt=system_prompt + "\nUser: " + user_input,
         arguments=KernelArguments(input=user_input),
@@ -41,20 +41,28 @@ async def multi_agent_dispatch_stream(user_input: str) -> str:
             function_choice_behavior=FunctionChoiceBehavior.Auto()
         ),
     )
-    print("Result from kernel:", result)
     
+    print("Result from kernel:", result)
     result_str = str(result).lower()
 
     if "multi_judge_plugin" in result_str:
         async for token in run_multi_judge_agents(user_input):
             yield token
+            
     elif "literature_plugin" in result_str:
         async for token in run_literature_agent_stream(user_input):
             yield token
+            
     elif "qa_plugin" in result_str:
-        document_qa_agent = DocumentQAAgent()
-        async for token in document_qa_agent.run_document_agent_stream(user_input):
-            yield token
+        warning_msg = (
+            "📄 It looks like you want to analyze or discuss a specific document. "
+            "To do this, please click the **'New Chat'** button and select the **'Document Agent'** profile. "
+            "You will be able to upload your PDFs or Word files there!"
+        )
+        for i in range(0, len(warning_msg), 15):
+            yield warning_msg[i:i+15]
+            await asyncio.sleep(0.02)
+            
     else:
         async for token in run_literature_agent_stream(user_input):
-            yield token # default feedback
+            yield token

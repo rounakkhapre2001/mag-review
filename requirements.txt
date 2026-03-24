@@ -2,14 +2,21 @@
 
 chainlit==1.0.0
 pydantic==1.10.13
-langchain==0.0.350
+
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.2
+openai>=1.0.0
+
 chromadb==0.4.22
-openai==0.28.1
 python-dotenv
 
 sentence-transformers==2.6.1
 torch==2.1.2+cpu
 huggingface_hub==0.20.3
+
+pymupdf
+docx2txt
 
 keybert
 pybars3

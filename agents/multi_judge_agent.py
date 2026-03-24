@@ -5,22 +5,23 @@ from typing import AsyncGenerator
 from dotenv import load_dotenv
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage
-from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from autogen_ext.models.azure import AzureAIChatCompletionClient
 from azure.core.credentials import AzureKeyCredential
 from autogen_core import CancellationToken
-import json
+from autogen_core.tools import FunctionTool
+
+from tools.arxiv_search_tool import query_arxiv, query_web
 
 load_dotenv()
 
 azure_api_key = os.getenv("GITHUB_TOKEN") 
-azure_endpoint = os.getenv("AZURE_INFERENCE_ENDPOINT", "https://models.inference.ai.azure.com") # e.g., "https://models.inference.ai.azure.com"
-model_name = os.getenv("LITERATURE_AGENT_MODEL", "gpt-4o") # Default to gpt-4o if not set
+azure_endpoint = os.getenv("AZURE_INFERENCE_ENDPOINT", "https://models.inference.ai.azure.com")
+model_name = os.getenv("LITERATURE_AGENT_MODEL", "gpt-4o") 
 
 # Azure GitHub Model client
 client = AzureAIChatCompletionClient(
     model="gpt-4o",
-    endpoint="https://models.inference.ai.azure.com",
+    endpoint=azure_endpoint,
     credential=AzureKeyCredential(azure_api_key),
     model_info={
         "json_output": True,
@@ -31,22 +32,9 @@ client = AzureAIChatCompletionClient(
     },
 )
 
-# api_key = os.getenv("OAI_KEY")
-# api_endpoint = os.getenv("OAI_ENDPOINT")
-
-# Azure GitHub Model client
-# client = AzureOpenAIChatCompletionClient(
-#     api_key=api_key,
-#     azure_endpoint=api_endpoint,
-#     model="gpt-4o",
-#     api_version="2024-05-13",
-#     model_info={
-#         "json_output": True,
-#         "function_calling": True,
-#         "vision": False,
-#         "family": "unknown",
-#     },
-# )
+# Wrap tools
+arxiv_tool = FunctionTool(query_arxiv, description="Searches arXiv for research papers.")
+web_tool = FunctionTool(query_web, description="Searches the web for relevant academic content.")
 
 # === Judge Agent Factory ===
 def create_judge_agent(name, model_client, dimension_prompt):
@@ -54,6 +42,7 @@ def create_judge_agent(name, model_client, dimension_prompt):
         name=name,
         model_client=model_client,
         system_message=dimension_prompt,
+        tools=[arxiv_tool, web_tool], 
         reflect_on_tool_use=True
     )
 
@@ -127,17 +116,12 @@ final_judge = AssistantAgent(
 )
 
 
-# Async runner wrapper with proper token streaming
+# Async runner wrapper
 async def run_multi_judge_agents(user_input: str) -> AsyncGenerator[str, None]:
-    """
-    Run three Judge agents concurrently with real-time progress feedback,
-    then aggregate their outputs via a Final Judge.
-    """
     judge1 = create_judge_agent("Judge_Relevance", client, judge_relevance_prompt)
     judge2 = create_judge_agent("Judge_Impact", client, judge_impact_prompt)
     judge3 = create_judge_agent("Judge_Novelty", client, judge_novelty_prompt)
 
-    # Define judges
     judge_agents = [judge1, judge2, judge3]
 
     print("🚀 Starting concurrent evaluation by 3 Judge Agents...")
@@ -158,7 +142,6 @@ async def run_multi_judge_agents(user_input: str) -> AsyncGenerator[str, None]:
     # Run all judge agents concurrently
     judge_outputs_list = await asyncio.gather(*(invoke_judge(j) for j in judge_agents))
 
-    # Check and map judge outputs
     judge_outputs = {}
     for judge, output in zip(judge_agents, judge_outputs_list):
         if output:
@@ -166,12 +149,10 @@ async def run_multi_judge_agents(user_input: str) -> AsyncGenerator[str, None]:
         else:
             print(f"⚠️ Warning: {judge.name} returned no output.")
 
-    # Prepare JSON input for final judge
     final_input = json.dumps(judge_outputs, indent=2)
 
     print("🎯 Aggregating all evaluations with Final Judge...")
 
-        # Create aggregation prompt for Final Judge (no JSON parsing)
     aggregation_prompt = (
         "You are the final judge aggregating independent evaluations from three judge agents.\n\n"
         f"User query: {user_input}\n\n"
@@ -197,37 +178,27 @@ async def run_multi_judge_agents(user_input: str) -> AsyncGenerator[str, None]:
         cancellation_token=CancellationToken()
     )
 
-    # Yield a loader indicator
-    yield "⏳ Thinking..."
+    yield "⏳ Thinking...\n\n"
     
-    # Track the tools being used
     announced_tools = set()  
     result_shown = False
     
     async for chunk_event in stream:
-        # If it's a string (direct content chunk)
         if isinstance(chunk_event, str):
             yield chunk_event
             
-        # If it has a content attribute
         elif hasattr(chunk_event, 'content'):
-            # Check for tool calls
             if isinstance(chunk_event.content, list):
                 for function_call in chunk_event.content:
                     if hasattr(function_call, 'name'):
                         tool_name = function_call.name
                         
-                        # Only announce a tool if we haven't announced it yet
                         if tool_name not in announced_tools:
                             announced_tools.add(tool_name)
-                            
-                            # Announce the tool being used
                             yield f"\n\n🔍 **Using tool: {tool_name}**\n"
                             
-                            # Add function arguments display
                             if hasattr(function_call, 'arguments') and function_call.arguments:
                                 try:
-                                    # Parse the arguments if they're a string containing JSON
                                     if isinstance(function_call.arguments, str):
                                         try:
                                             args_obj = json.loads(function_call.arguments)
@@ -243,15 +214,11 @@ async def run_multi_judge_agents(user_input: str) -> AsyncGenerator[str, None]:
                                 except Exception as e:
                                      yield f"\n\n❌ **Error displaying arguments:** {str(e)}\n\n"
                             else:
-                                # Add an extra newline for consistent spacing
                                 yield "\n"
                         
-            # Handle final response
             elif isinstance(chunk_event.content, str):
-                # If we used tools and haven't shown results marker yet
                 if announced_tools and not result_shown:
                     yield f"\n\n✅ **Results:**\n\n"
                     result_shown = True
                     
-                # Yield the final content
                 yield chunk_event.content

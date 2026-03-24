@@ -1,4 +1,3 @@
-
 import os
 from typing import AsyncGenerator
 import chromadb
@@ -7,7 +6,7 @@ from langchain_community.vectorstores import Chroma
 from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader, PyMuPDFLoader, Docx2txtLoader
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI 
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,7 +36,6 @@ class EmbeddingsManager:
 # ---------------- AGENT ----------------
 class DocumentQAAgent:
     def __init__(self):
-        # ✅ OpenAI LLM (stable)
         self.llm = ChatOpenAI(
             temperature=0.3,
             openai_api_key=os.getenv("OPENAI_API_KEY"),
@@ -125,7 +123,7 @@ class DocumentQAAgent:
         """
 
         try:
-            response = self.llm.predict(prompt)
+            response = self.llm.invoke(prompt).content
         except Exception as e:
             response = f"Error: {str(e)}"
 

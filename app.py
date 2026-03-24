@@ -71,22 +71,24 @@ async def start():
 
 
 async def process_files(files, agent):
-    msg = cl.Message(content="Processing files...")
+    msg = cl.Message(content="Processing files...\n")
     await msg.send()
 
     for i, file in enumerate(files):
         try:
+            file_extension = file.name.split('.')[-1].lower()
+            
             chunks = agent.process_document(
                 file.path,
-                file.path.split('.')[-1],
+                file_extension,
                 file.name
             )
 
-            msg.content = f"✅ {file.name} ({chunks} chunks)"
+            msg.content += f"\n✅ {file.name} ({chunks} chunks)"
             await msg.update()
 
         except Exception as e:
-            msg.content = f"❌ {file.name}: {str(e)}"
+            msg.content += f"\n❌ {file.name}: {str(e)}"
             await msg.update()
 
 
@@ -110,13 +112,15 @@ async def handle_search(message):
     try:
         async for token in multi_agent_dispatch_stream(message.content):
             if token and token != "⏳ Thinking...":
-
                 if not full:
                     msg.content = ""
                     await msg.update()
 
                 full += token
                 await msg.stream_token(token)
+                
+        if full:
+            await msg.update()
 
     except Exception as e:
         await cl.Message(content=f"❌ Error: {str(e)}").send()
@@ -137,7 +141,6 @@ async def handle_document(message):
 
     try:
         async for token in agent.run_document_agent_stream(message.content):
-
             if token:
                 if not full:
                     msg.content = ""
@@ -145,6 +148,9 @@ async def handle_document(message):
 
                 full += token
                 await msg.stream_token(token)
+                
+        if full:
+            await msg.update()
 
     except Exception as e:
         await cl.Message(content=f"❌ Error: {str(e)}").send()
@@ -158,8 +164,6 @@ async def end():
         agent.cleanup()
 
 
-# IMPORTANT FOR RENDER
 if __name__ == "__main__":
     import chainlit.cli as cli
     cli.run_chainlit(__file__)
-
