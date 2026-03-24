@@ -11,8 +11,6 @@ sentence-transformers==2.6.1
 torch==2.1.2+cpu
 huggingface_hub==0.20.3
 
-pyautogen==0.2.0
-
 keybert
 pybars3
 aiohttp
